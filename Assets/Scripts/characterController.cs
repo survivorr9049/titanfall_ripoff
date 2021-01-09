@@ -49,7 +49,7 @@ public class characterController : MonoBehaviour
     }
     void Update( ){
         if (wasWall && !isWall) wallExit();
-        if (!wasWall && isWall) print("Wall Enter");
+        if (!wasWall && isWall) wallEnter();
         wasWall = isWall;
         if (isWall) isWall = false;
 
@@ -59,6 +59,7 @@ public class characterController : MonoBehaviour
         camera.Rotate(new Vector3(-mouseY * mouseSens, 0f));
 
         isGrounded = groundCheck(isGrounded);
+
         if (Input.GetKeyDown(KeyCode.Space) && jumpAmount > 0) {
             velocity.y = Mathf.Clamp(velocity.y, -gravity, 1000);
             velocity.y += jumpForce;
