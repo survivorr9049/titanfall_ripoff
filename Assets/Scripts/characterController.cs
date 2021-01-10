@@ -25,6 +25,8 @@ public class characterController : MonoBehaviour
     public float gravity;
 
     [Header("WallRunning")]
+    public float wallAccelerationMultiplier;
+    public float wallControl;
     public float runTimer;
     public bool isWall;
     public bool wasWall;
@@ -44,6 +46,7 @@ public class characterController : MonoBehaviour
     float mouseY;
     public float test;
     public float reference0;
+    public float comes;
     float camZ;
 
     // Start is called before the first frame update
@@ -53,14 +56,14 @@ public class characterController : MonoBehaviour
         //later set objects here
     }
     void Update( ){
-        camera.transform.localEulerAngles = new Vector3(0, 0, camZ);
+        /*camera.transform.localEulerAngles = new Vector3(0, 0, camZ);
 
         if (isWall) {
             camZ = Mathf.SmoothDamp(camZ, 20, ref reference0, 0.1f);
         }
         else {
             camZ = Mathf.SmoothDamp(camZ, 0, ref reference0, 0.05f);
-        }
+        }*/
         //if (!isWall) camera.transform.localEulerAngles = new Vector3(0, 0, 0);
         input = new Vector3(Input.GetAxis("Horizontal"), 0f, Input.GetAxis("Vertical"));
         if (isWall) runTimer += Time.deltaTime;
@@ -68,13 +71,15 @@ public class characterController : MonoBehaviour
         if (wasWall && !isWall) wallExit();
         if (!wasWall && isWall) wallEnter();
         wasWall = isWall;
-        if (isWall) isWall = false;
 
-        mouseX = Input.GetAxis("Mouse X");
-        mouseY = Input.GetAxis("Mouse Y");
-        transform.Rotate(new Vector3(0, mouseX * mouseSens));
-        cameraParent.Rotate(new Vector3(-mouseY * mouseSens, 0f));
-
+        mouseX += Input.GetAxis("Mouse X") * mouseSens;
+        mouseY += Input.GetAxis("Mouse Y") * mouseSens;
+        mouseY = Mathf.Clamp(mouseY, -70, 70);
+        transform.rotation = Quaternion.Euler(0f, mouseX, 0f);
+        cameraParent.transform.rotation = Quaternion.Euler(-mouseY, transform.eulerAngles.y, 0f);
+        //cameraParent.Rotate(new Vector3(-mouseY * mouseSens, 0f));
+        //cameraParent.transform.eulerAngles = new Vector3(Mathf.Clamp(cameraParent.transform.eulerAngles.x, -70, 70), cameraParent.transform.eulerAngles.y, cameraParent.transform.eulerAngles.z);
+        comes = cameraParent.transform.eulerAngles.x;
         isGrounded = groundCheck(isGrounded);
 
         if (Input.GetKeyDown(KeyCode.Space) && jumpAmount > 0) {
@@ -87,6 +92,12 @@ public class characterController : MonoBehaviour
         if (Input.GetKey(KeyCode.A)) velocity += transform.right * -actualSpeed * normalizer * Time.deltaTime;
         if (Input.GetKey(KeyCode.S)) velocity += transform.forward * -actualSpeed * normalizer * Time.deltaTime;
 
+        if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.D) && Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.S) && Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.A) && Input.GetKey(KeyCode.W)) {
+            diagonal = true;
+        }
+        else {
+            diagonal = false;
+        }
 
         if (isGrounded) {
             jumpAmount = 2;
@@ -96,29 +107,32 @@ public class characterController : MonoBehaviour
             float reference = 0f;
             actualDrag = Mathf.SmoothDamp(actualDrag, drag, ref reference, 0.01f);
 
-            if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.D) && Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.S) && Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.A) && Input.GetKey(KeyCode.W)) {
-                diagonal = true;
-            }
-            else {
-                diagonal = false;
-            }
-
             if (diagonal) normalizer = 0.707f;
             else normalizer = 1f;
         }
         else {
-            actualDrag = drag / airControl;
-            normalizer = 1f;
-            actualSpeed = movementSpeed * airAccelerationMultiplier;
+            if (!isWall) {
+                normalizer = 1f;
+                actualDrag = drag / airControl;
+                actualSpeed = movementSpeed * airAccelerationMultiplier;
+            }
+            else {
+                if (diagonal) normalizer = 0.707f;
+                else normalizer = 1f;
+                actualDrag = (drag / wallControl) * (runTimer / 5 + 0.6f);
+                actualSpeed = movementSpeed * wallAccelerationMultiplier;
+            }
         }
+        if (isWall) isWall = false;
 
         player.Move(velocity * Time.deltaTime);
+
 
     }
 
     // Update is called once per frame
     void FixedUpdate() {
-        //text.text = Vector3.Magnitude(new Vector3(velocity.x, 0, velocity.z)).ToString();
+        text.text = Mathf.Floor(Vector3.Magnitude(new Vector3(velocity.x, 0, velocity.z))).ToString();
 
         velocity.x = velocity.x * 1 / (actualDrag + 1);
         velocity.z = velocity.z * 1 / (actualDrag + 1);
@@ -164,7 +178,7 @@ public class characterController : MonoBehaviour
             float reference = 0f;
             actualGravity = Mathf.SmoothDamp(gravity / 10, gravity * Mathf.Pow(runTimer, 2) / (velocity.magnitude / 14 + 1), ref reference, 0.01f / velocity.magnitude);
             velocity.y = Mathf.Clamp(velocity.y, -actualGravity * 5, 20);
-            velocity += contact * -10/velocity.magnitude;
+            velocity += contact * -15/velocity.magnitude;
             //velocity += transform.forward;
             if (Input.GetKeyDown(KeyCode.Space) || actualGravity > gravity) { //throw player away from wall
                 velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)), contact); 
