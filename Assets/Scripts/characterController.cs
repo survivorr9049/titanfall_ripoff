@@ -29,13 +29,14 @@ public class characterController : MonoBehaviour
     public float wallAccelerationMultiplier;
     public float wallControl;
     public float wallrunCameraAngle;
+    public float cameraComes;
     public float cameraSmoothness;
     public float runTimer;
     public bool isWall;
     public bool wasWall;
     public Vector3 contact;
     public float actualGravity;
-
+    public Vector3 lastContact;
     [Header("Debug")]
     public float normalizer = 1f;
     public bool isGrounded;
@@ -54,8 +55,7 @@ public class characterController : MonoBehaviour
     public int wallSide;
     public Quaternion rot;
     public Vector3 final;
-    public float test123;
-
+    float timer;
 
 
     // Start is called before the first frame update
@@ -67,45 +67,10 @@ public class characterController : MonoBehaviour
         //later set objects here
     }
     void Update(){
-
-        if (isWall) {
-            rot = Quaternion.FromToRotation(Vector3.right, contact * -wallSide);
-            float reference1 = 0;
-            //transform.rotation = rot;
-            //mouseX = Mathf.SmoothDamp(transform.eulerAngles.y, rot.eulerAngles.y, ref reference1, 0.08f);
-            //mouseX = rot.eulerAngles.y;
-            transform.rotation = Quaternion.Slerp(transform.rotation, rot, 0.05f);
-            test123 = rot.eulerAngles.y;
-        }
-        camera.transform.localEulerAngles = new Vector3(0, 0, camZ);
-
-        if (isWall) {
-            camZ = Mathf.SmoothDamp(camZ, wallrunCameraAngle * wallSide, ref reference0, cameraSmoothness);
-        }
-        else {
-            camZ = Mathf.SmoothDamp(camZ, 0, ref reference0, cameraSmoothness/2);
-        }
-        //if (!isWall) camera.transform.localEulerAngles = new Vector3(0, 0, 0);
+        //input
         input = new Vector3(Input.GetAxis("Horizontal"), 0f, Input.GetAxis("Vertical"));
-        if (isWall) runTimer += Time.deltaTime;
-        else runTimer = 0;
-        if (wasWall && !isWall) wallExit();
-        if (!wasWall && isWall) wallEnter();
-        wasWall = isWall;
-
         mouseX = Input.GetAxis("Mouse X") * mouseSens;
         mouseY += Input.GetAxis("Mouse Y") * mouseSens;
-        mouseY = Mathf.Clamp(mouseY, -70, 70);
-        transform.eulerAngles += new Vector3(0, mouseX, 0);
-        cameraParent.transform.rotation = Quaternion.Euler(-mouseY, transform.eulerAngles.y, 0f);
-
-
-
-        //cameraParent.Rotate(new Vector3(-mouseY * mouseSens, 0f));
-        //cameraParent.transform.eulerAngles = new Vector3(Mathf.Clamp(cameraParent.transform.eulerAngles.x, -70, 70), cameraParent.transform.eulerAngles.y, cameraParent.transform.eulerAngles.z);
-        comes = cameraParent.transform.eulerAngles.x;
-        isGrounded = groundCheck(isGrounded);
-
         if (Input.GetKeyDown(KeyCode.Space) && jumpAmount > 0) {
             velocity.y = Mathf.Clamp(velocity.y, -gravity, 1000);
             velocity.y += jumpForce;
@@ -123,7 +88,37 @@ public class characterController : MonoBehaviour
             diagonal = false;
         }
 
+
+        //Wallrunning logic
+        if (isWall) {
+            camZ = Mathf.SmoothDamp(camZ, wallrunCameraAngle * wallSide / (Mathf.Pow(runTimer, 3) / 3 + 1), ref reference0, cameraSmoothness);
+            rot = Quaternion.FromToRotation(Vector3.right, contact * -wallSide);
+            float reference1 = 0;
+            if (wallSide != 0) transform.rotation = Quaternion.Slerp(transform.rotation, rot, cameraComes * Time.deltaTime);
+            timer = 0;
+            runTimer += Time.deltaTime;
+        }
+        else {
+            camZ = Mathf.SmoothDamp(camZ, 0, ref reference0, cameraSmoothness / 2);
+            timer += Time.deltaTime;
+            runTimer = 0;
+        }
+        if (timer > 1f) lastContact = Vector3.zero;
+        if (wasWall && !isWall) wallExit();
+        if (!wasWall && isWall) wallEnter();
+        wasWall = isWall;
+        camera.transform.localEulerAngles = new Vector3(0, 0, camZ);
+
+
+        //rotate player and camera
+        mouseY = Mathf.Clamp(mouseY, -70, 70);
+        transform.eulerAngles += new Vector3(0, mouseX, 0);
+        cameraParent.transform.rotation = Quaternion.Euler(-mouseY, transform.eulerAngles.y, 0f);
+
+        //groundCheck logic
+        isGrounded = groundCheck(isGrounded);
         if (isGrounded) {
+            lastContact = Vector3.zero;
             jumpAmount = 2;
             if (Input.GetKey(KeyCode.LeftShift)) actualSpeed = sprintSpeed;
             else actualSpeed = movementSpeed;
@@ -147,9 +142,8 @@ public class characterController : MonoBehaviour
                 actualSpeed = movementSpeed * wallAccelerationMultiplier;
             }
         }
-        if (isWall) isWall = false;
-
-        player.Move(velocity * Time.deltaTime);
+        isWall = false;
+        player.Move(velocity * Time.deltaTime); //move player
 
 
     }
@@ -158,6 +152,7 @@ public class characterController : MonoBehaviour
     void FixedUpdate() {
         text.text = Mathf.Floor(Vector3.Magnitude(new Vector3(velocity.x, 0, velocity.z))).ToString();
 
+        //Apply and calculate drag and gravity
         velocity.x = velocity.x * 1 / (actualDrag + 1);
         velocity.z = velocity.z * 1 / (actualDrag + 1);
 
@@ -168,6 +163,9 @@ public class characterController : MonoBehaviour
             velocity.y = Mathf.Clamp(velocity.y, -gravity, 1000);
         }
     }
+
+
+    //Check if player is grounded, called every frame
     bool groundCheck(bool isGrounded) {
    
         wasGrounded = isGrounded;
@@ -184,52 +182,63 @@ public class characterController : MonoBehaviour
         return isGrounded;
        
     }
+
+    //Called after player exits ground
     void groundExit() {
         print("exit");
     }
+
+    //Called after player enters ground
     void groundEnter() {
         print("enter");
     }
 
     private void OnControllerColliderHit(ControllerColliderHit collision) {
-
-        RaycastHit side;
-        if (Physics.Raycast(transform.position, transform.right, out side, 4f)) {
-            wallSide = 1;
-        }else if(Physics.Raycast(transform.position, -transform.right, out side, 4f)) {
-            wallSide = -1;
-        }
-
-        if (!isGrounded && collision.normal.y < 0.1f) {
-            isWall = true;
-            contact = collision.normal;
-            
-            print(contact);
-            //velocity += contact * 40;
-            //velocity.y += 20;
-            float reference = 0f;
-            actualGravity = Mathf.SmoothDamp(gravity / 10, gravity * Mathf.Pow(runTimer, 2) / (velocity.magnitude / 14 + 1), ref reference, 0.01f / velocity.magnitude);
-            velocity.y = Mathf.Clamp(velocity.y, -actualGravity * 5, 20);
-            velocity += contact * -15/(velocity.magnitude / 2);
-            //velocity += transform.forward;
-            if (Input.GetKeyDown(KeyCode.Space) || actualGravity > gravity) { //throw player away from wall
-                velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)), contact); 
-                velocity += Vector3.Scale(transform.forward, input) * 15 + transform.up * 4 + contact * 7;
-
+        if (collision.normal != lastContact) {
+            RaycastHit side;
+            if (Physics.Raycast(transform.position, transform.right, out side, 4f)) {
+                wallSide = 1;
+            }
+            else if (Physics.Raycast(transform.position, -transform.right, out side, 4f)) {
+                wallSide = -1;
+            }
+            else {
+                wallSide = 0;
             }
 
-        }
+            if (!isGrounded && collision.normal.y < 0.1f && collision.normal.y > -0.1f) {
+                isWall = true;
+                contact = collision.normal;
 
+                print(contact);
+                float reference = 0f;
+                actualGravity = Mathf.SmoothDamp(gravity / 10, gravity * Mathf.Pow(runTimer, 2) / (velocity.magnitude / 14 + 1), ref reference, 0.01f / velocity.magnitude);
+                velocity.y = Mathf.Clamp(velocity.y, -actualGravity * 5, 20);
+                velocity += contact * -15 / (velocity.magnitude / 2);
+                if (Input.GetKeyDown(KeyCode.Space)) {
+                    velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)), contact);
+                    velocity += Vector3.Scale(transform.forward, input) * 15 + transform.up * 4 + contact * 7;
+                }
+                else if (actualGravity > gravity) {
+                    velocity += contact * 3;
+                }
+
+            }
+        }
     }
+
+    //Called when player enters wall
     void wallEnter() {
         velocity += transform.up * 2;
         print("WallEnter");
         velocity.y = Mathf.Clamp(velocity.y, -gravity*2, gravity*2);
     }
+
+    //Called when player exits wall
     void wallExit() {
+        lastContact = contact;
         actualGravity = gravity;
         velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)) * 1.3f, contact * 1.2f);
-        //print(velocity.x);
         jumpAmount = 2;
     }
 
