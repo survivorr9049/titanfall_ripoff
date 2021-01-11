@@ -5,8 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.UIElements;
 
-public class characterController : MonoBehaviour
-{   
+public class characterController : MonoBehaviour {
     [Header("Objects")]
     public CharacterController player;
     public Text text;
@@ -56,7 +55,7 @@ public class characterController : MonoBehaviour
     public Quaternion rot;
     public Vector3 final;
     float timer;
-
+    public bool jumped;
 
     // Start is called before the first frame update
     void Start() {
@@ -66,8 +65,15 @@ public class characterController : MonoBehaviour
         actualGravity = gravity;
         //later set objects here
     }
-    void Update(){
+    void Update() {
         //input
+
+        //dev test
+        if (Input.GetKey(KeyCode.C)) {
+            velocity += transform.forward * 1000 * Time.deltaTime;
+        }
+        //dev test
+
         input = new Vector3(Input.GetAxis("Horizontal"), 0f, Input.GetAxis("Vertical"));
         mouseX = Input.GetAxis("Mouse X") * mouseSens;
         mouseY += Input.GetAxis("Mouse Y") * mouseSens;
@@ -99,7 +105,7 @@ public class characterController : MonoBehaviour
             runTimer += Time.deltaTime;
         }
         else {
-            camZ = Mathf.SmoothDamp(camZ, 0, ref reference0, cameraSmoothness / 2);
+            camZ = Mathf.SmoothDamp(camZ, 0, ref reference0, cameraSmoothness / 1.3f);
             timer += Time.deltaTime;
             runTimer = 0;
         }
@@ -167,20 +173,18 @@ public class characterController : MonoBehaviour
 
     //Check if player is grounded, called every frame
     bool groundCheck(bool isGrounded) {
-   
+
         wasGrounded = isGrounded;
         isGrounded = player.isGrounded;
-        if(isGrounded && !wasGrounded)
-        {
+        if (isGrounded && !wasGrounded) {
             groundEnter();
         }
-        else if(!isGrounded && wasGrounded)
-        {
+        else if (!isGrounded && wasGrounded) {
             groundExit();
         }
-  
+
         return isGrounded;
-       
+
     }
 
     //Called after player exits ground
@@ -194,7 +198,7 @@ public class characterController : MonoBehaviour
     }
 
     private void OnControllerColliderHit(ControllerColliderHit collision) {
-        if (collision.normal != lastContact) {
+        if (collision.normal.ToString("F3") != lastContact.ToString("F3")) {
             RaycastHit side;
             if (Physics.Raycast(transform.position, transform.right, out side, 4f)) {
                 wallSide = 1;
@@ -216,8 +220,9 @@ public class characterController : MonoBehaviour
                 velocity.y = Mathf.Clamp(velocity.y, -actualGravity * 5, 20);
                 velocity += contact * -15 / (velocity.magnitude / 2);
                 if (Input.GetKeyDown(KeyCode.Space)) {
-                    velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)), contact);
-                    velocity += Vector3.Scale(transform.forward, input) * 15 + transform.up * 4 + contact * 7;
+                    //velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)), contact);
+                    jumped = true;
+                    velocity += Vector3.Scale(transform.forward, input) * 15 + transform.up * 4 + contact * velocity.magnitude;
                 }
                 else if (actualGravity > gravity) {
                     velocity += contact * 3;
@@ -231,16 +236,17 @@ public class characterController : MonoBehaviour
     void wallEnter() {
         velocity += transform.up * 2;
         print("WallEnter");
-        velocity.y = Mathf.Clamp(velocity.y, -gravity*2, gravity*2);
+        velocity.y = Mathf.Clamp(velocity.y, -gravity * 2, gravity * 2);
     }
 
     //Called when player exits wall
     void wallExit() {
         lastContact = contact;
         actualGravity = gravity;
-        velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)) * 1.3f, contact * 1.2f);
+        if(!jumped) velocity += contact * velocity.magnitude;
         jumpAmount = 2;
+        jumped = false;
     }
 
-    
+
 }
