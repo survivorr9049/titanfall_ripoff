@@ -83,8 +83,8 @@ public class characterController : MonoBehaviour {
         }else if(Input.GetKeyDown(KeyCode.Space) && secondJump) {
             doubleJump();
         }
-        velocity += transform.forward * actualSpeed * Time.deltaTime * input.z; 
-        velocity += transform.right * actualSpeed * Time.deltaTime * input.x;
+        velocity += transform.forward * actualSpeed * Time.deltaTime * input.z * normalizer; 
+        velocity += transform.right * actualSpeed * Time.deltaTime * input.x * normalizer;
         if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.D) && Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.S) && Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.A) && Input.GetKey(KeyCode.W)) {
             diagonal = true;
         }
@@ -217,9 +217,9 @@ public class characterController : MonoBehaviour {
                 velocity.y = Mathf.Clamp(velocity.y, -actualGravity * 5, 20);
                 velocity += contact * -15 / (velocity.magnitude / 2) * Time.deltaTime * 200;
                 if (Input.GetKeyDown(KeyCode.Space)) {
-                    //velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)), contact);
+                    velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)), contact);
                     jumped = true;
-                    velocity += transform.forward * input.z * 15 + transform.right * input.x * 15 + transform.up * 4 + contact * velocity.magnitude;
+                    velocity += transform.forward * input.z * 15 + transform.right * input.x * 12 + transform.up * 4 + contact * velocity.magnitude * 0.4f ;
                 }
                 else if (actualGravity > gravity) {
                     velocity += contact * 5;
@@ -241,7 +241,9 @@ public class characterController : MonoBehaviour {
     void wallExit() {
         lastContact = contact;
         actualGravity = gravity;
-        if(!jumped) velocity += contact * velocity.magnitude;
+        if (!jumped) {
+            velocity += contact * velocity.magnitude;
+        }
         secondJump = true;
         jumped = false;
     }
