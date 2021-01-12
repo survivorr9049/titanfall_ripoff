@@ -21,7 +21,7 @@ public class characterController : MonoBehaviour {
     public float drag;
     public float mouseSens;
     public float jumpForce;
-    public float jumpAmount; //test purpose
+    public bool secondJump; //test purpose
     public float gravity;
 
     [Header("WallRunning")]
@@ -77,23 +77,20 @@ public class characterController : MonoBehaviour {
         input = new Vector3(Input.GetAxis("Horizontal"), 0f, Input.GetAxis("Vertical"));
         mouseX = Input.GetAxis("Mouse X") * mouseSens;
         mouseY += Input.GetAxis("Mouse Y") * mouseSens;
-        if (Input.GetKeyDown(KeyCode.Space) && jumpAmount > 0) {
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded) {
             velocity.y = Mathf.Clamp(velocity.y, -gravity, 1000);
             velocity.y += jumpForce;
-            jumpAmount -= 1;
+        }else if(Input.GetKeyDown(KeyCode.Space) && secondJump) {
+            doubleJump();
         }
-        if (Input.GetKey(KeyCode.W)) velocity += transform.forward * actualSpeed * normalizer * Time.deltaTime;
-        if (Input.GetKey(KeyCode.D)) velocity += transform.right * actualSpeed * normalizer * Time.deltaTime;
-        if (Input.GetKey(KeyCode.A)) velocity += transform.right * -actualSpeed * normalizer * Time.deltaTime;
-        if (Input.GetKey(KeyCode.S)) velocity += transform.forward * -actualSpeed * normalizer * Time.deltaTime;
-
+        velocity += transform.forward * actualSpeed * Time.deltaTime * input.z; 
+        velocity += transform.right * actualSpeed * Time.deltaTime * input.x;
         if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.D) && Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.S) && Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.A) && Input.GetKey(KeyCode.W)) {
             diagonal = true;
         }
         else {
             diagonal = false;
         }
-
 
         //Wallrunning logic
         if (isWall) {
@@ -125,7 +122,7 @@ public class characterController : MonoBehaviour {
         isGrounded = groundCheck(isGrounded);
         if (isGrounded) {
             lastContact = Vector3.zero;
-            jumpAmount = 2;
+            secondJump = true;
             if (Input.GetKey(KeyCode.LeftShift)) actualSpeed = sprintSpeed;
             else actualSpeed = movementSpeed;
 
@@ -218,14 +215,15 @@ public class characterController : MonoBehaviour {
                 float reference = 0f;
                 actualGravity = Mathf.SmoothDamp(gravity / 10, gravity * Mathf.Pow(runTimer, 2) / (velocity.magnitude / 14 + 1), ref reference, 0.01f / velocity.magnitude);
                 velocity.y = Mathf.Clamp(velocity.y, -actualGravity * 5, 20);
-                velocity += contact * -15 / (velocity.magnitude / 2);
+                velocity += contact * -15 / (velocity.magnitude / 2) * Time.deltaTime * 200;
                 if (Input.GetKeyDown(KeyCode.Space)) {
                     //velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)), contact);
                     jumped = true;
-                    velocity += Vector3.Scale(transform.forward, input) * 15 + transform.up * 4 + contact * velocity.magnitude;
+                    velocity += transform.forward * input.z * 15 + transform.right * input.x * 15 + transform.up * 4 + contact * velocity.magnitude;
                 }
                 else if (actualGravity > gravity) {
-                    velocity += contact * 3;
+                    velocity += contact * 5;
+                    jumped = true;
                 }
 
             }
@@ -244,8 +242,14 @@ public class characterController : MonoBehaviour {
         lastContact = contact;
         actualGravity = gravity;
         if(!jumped) velocity += contact * velocity.magnitude;
-        jumpAmount = 2;
+        secondJump = true;
         jumped = false;
+    }
+    void doubleJump() {
+        velocity.y = Mathf.Clamp(velocity.y, -gravity, 1000);
+        velocity += transform.forward * input.z * 15 + transform.right * input.x * 15 + transform.up * jumpForce;
+        secondJump = false;
+        print("double");
     }
 
 
