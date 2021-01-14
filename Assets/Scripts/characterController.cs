@@ -56,7 +56,7 @@ public class characterController : MonoBehaviour {
     public Vector3 final;
     float timer;
     public bool jumped;
-
+    public float angle;
     // Start is called before the first frame update
     void Start() {
         UnityEngine.Cursor.lockState = CursorLockMode.Locked;
@@ -71,6 +71,12 @@ public class characterController : MonoBehaviour {
         //dev test
         if (Input.GetKey(KeyCode.C)) {
             velocity += transform.forward * 1000 * Time.deltaTime;
+        }
+        if (Input.GetKey(KeyCode.R)){
+            Time.timeScale = 0.25f;
+        }
+        else {
+            Time.timeScale = 1;
         }
         //dev test
 
@@ -97,7 +103,10 @@ public class characterController : MonoBehaviour {
             camZ = Mathf.SmoothDamp(camZ, wallrunCameraAngle * wallSide / (Mathf.Pow(runTimer, 3) / 3 + 1), ref reference0, cameraSmoothness);
             rot = Quaternion.FromToRotation(Vector3.right, contact * -wallSide);
             float reference1 = 0;
-            if (wallSide != 0) transform.rotation = Quaternion.Slerp(transform.rotation, rot, cameraComes * Time.deltaTime);
+            angle = getAngle(rot, transform.rotation, Vector3.up);
+            if (wallSide != 0) {
+                if (wallSide == 1 && angle > 0 || wallSide == -1 && angle < 0) transform.rotation = Quaternion.Slerp(transform.rotation, rot, cameraComes * Time.deltaTime);
+            }
             timer = 0;
             runTimer += Time.deltaTime;
         }
@@ -217,9 +226,9 @@ public class characterController : MonoBehaviour {
                 velocity.y = Mathf.Clamp(velocity.y, -actualGravity * 5, 20);
                 velocity += contact * -15 / (velocity.magnitude / 2) * Time.deltaTime * 200;
                 if (Input.GetKeyDown(KeyCode.Space)) {
-                    velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)), contact);
+                    //velocity += Vector3.Scale(new Vector3(Mathf.Abs(velocity.x), Mathf.Abs(velocity.y), Mathf.Abs(velocity.z)), contact);
                     jumped = true;
-                    velocity += transform.forward * input.z * 15 + transform.right * input.x * 12 + transform.up * 4 + contact * velocity.magnitude * 0.4f ;
+                    velocity += transform.forward * input.z * 4 + transform.right * input.x * 3 + transform.up * 4 + contact * velocity.magnitude * 1f ;
                 }
                 else if (actualGravity > gravity) {
                     velocity += contact * 5;
@@ -253,6 +262,14 @@ public class characterController : MonoBehaviour {
         secondJump = false;
         print("double");
     }
-
+    public float getAngle(Quaternion A, Quaternion B, Vector3 axis) {
+        float angle = 0f;
+        Vector3 angleAxis = Vector3.zero;
+        (B * Quaternion.Inverse(A)).ToAngleAxis(out angle, out angleAxis);
+        if (Vector3.Angle(axis, angleAxis) > 90f) {
+            angle = -angle;
+        }
+        return Mathf.DeltaAngle(0f, angle);
+    }
 
 }
